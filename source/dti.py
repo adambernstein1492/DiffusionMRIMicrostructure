@@ -107,7 +107,7 @@ def fit_dti(dwi, bvals, bvecs, mask):
                     # Coefficient of Determination
                     predicted_vals = np.matmul(b_matrix, x)
 
-                    rho = np.corrcoef(predicted_vals, dwi_log[i,j,k,:])            
+                    rho = np.corrcoef(predicted_vals, dwi_log[i,j,k,:])
 
                     r_squared[i,j,k] = rho[0][1] ** 2
 

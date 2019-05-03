@@ -1,0 +1,229 @@
+#!/usr/bin/env python
+
+import os
+import subprocess
+import argparse
+import shutil
+import nibabel as nib
+import dipy.io
+import numpy as np
+import source.dti as dti
+import source.map as map
+#import source.amico as amico
+import source.util as util
+import source.dki as dki
+import source.qbi as qbi
+import source.gqi as gqi
+
+
+### DEFINE INPUTS ##############################################################
+parser = argparse.ArgumentParser(description="Process a Diffusion MRI dataset using any of several microstructural analysis techniques")
+parser.add_argument("-d", "--dti", type=int, help="Perform Diffusion Tensor Imaging.", nargs="?", default=0, const=2100, metavar="b_value_cutoff")
+parser.add_argument("-k", "--dki", type=int, help="Perform Diffusion Kurtosis Imaging", nargs="?", default=0, const=2100, metavar="b_value_cutoff")
+parser.add_argument("-n", "--noddi", action="store_true", help="Perform NODDI", default=False)
+parser.add_argument("-a", "--afd", action="store_true", help="Estimate the Apparent Fiber Density", default=False)
+parser.add_argument("-m", "--map", type=float, help="Estimate the Mean Apparent Propagator", nargs=3, default=0, metavar=("d", "D", "b_value_cutoff"))
+parser.add_argument("-g", "--gqi", action="store_true", help="Perform Generalized q-sampling Analysis", default=False)
+parser.add_argument("-q", "--qbi", action="store_true", help="Perform Q-Ball Imaging", default=False)
+parser.add_argument("-b", "--mask", type=str, help="Filepath to a mask image to be used. Default=None)", default="None", metavar=('mask'))
+parser.add_argument("Image", type=str, help="Diffusion Weighted MRI filepath")
+parser.add_argument("bval", type=str, help="b-value filepath")
+parser.add_argument("bvec", type=str, help="b-vector filepath")
+parser.add_argument("Output", type=str, help="Output directory")
+
+args = parser.parse_args()
+################################################################################
+
+
+
+### ERROR HANDLING #############################################################
+# Check Inputs
+util.check_diffusion_input(args.Image, args.bval, args.bvec, args.mask)
+
+"""
+ -Must be at least 1 b=0 and 6 b > 0 measurements for DTI
+ -Must be at least 1 b=0 and 15 b > 0 measurements for DKI (should contain multiple shells)
+ -Must be at least 1 b=0, and 30 b > 0 measurements on multiple shells for NODDI
+ -Must be at least 30 b > 0 measurements for CSD
+ -Must be at least 1 b=0 and 50 b > 0 measurements on multiple shells for MAP
+"""
+bval,bvec = dipy.io.read_bvals_bvecs(args.bval, args.bvec)
+
+number_measures = len(bval)
+unique_b_vals = len(set(bval))
+number_high_bvals = 0
+b0_present = False
+for i in bval:
+    if i > 100:
+        number_high_bvals += 1
+    if i < 50:
+        b0_present = True
+
+if args.dti != 0 and (number_high_bvals < 6 or b0_present==False):
+    print("Error: Measurement scheme does not meet DTI minimums")
+    quit()
+
+if args.dki != 0 and (number_high_bvals < 15 or b0_present==False):
+    print("Error: Measurement scheme does not meet DKI minimums")
+    quit()
+
+if args.noddi and (number_high_bvals < 30 or b0_present==False or unique_b_vals < 3):
+    print("Error: Measurement scheme does not meet NODDI minimums")
+    quit()
+
+if args.afd and number_high_bvals < 30:
+    print("Error: Measurement scheme does not meet CSD minimums")
+    quit()
+
+if args.map != 0 and (number_high_bvals < 50 or b0_present==False):
+    print("Error: Measurement scheme does not meet MAP minimums")
+    quit()
+
+if args.mask != "None":
+    temp_mask = False
+################################################################################
+
+
+
+# Create Output Directory for Processing
+if args.Output[-1] != "/":
+    outpath = args.Output + "/"
+else:
+    outpath = args.Output
+os.makedirs(outpath)
+
+# Create Temporary Mask
+if args.mask == "None":
+    temp_mask = True
+    dwi = nib.load(args.Image)
+    mask = np.ones((dwi.shape[0], dwi.shape[1], dwi.shape[2]))
+    mask_img = nib.Nifti1Image(mask, dwi.affine, dwi.header)
+    nib.save(mask_img, (outpath + "mask.nii"))
+    args.mask = outpath + "mask.nii"
+
+### DTI ########################################################################
+if args.dti != 0:
+    print("Performing DTI Analysis:")
+    dti_outpath = outpath + "DTI/"
+    os.mkdir(dti_outpath)
+
+    dti.main_dti(args.Image, args.bval, args.bvec, args.mask, dti_outpath, b_thresh=args.dti)
+################################################################################
+
+
+
+### DKI ########################################################################
+if args.dki != 0:
+    print("Performing DKI Analysis:")
+    dki_outpath = outpath + "DKI/"
+    os.mkdir(dki_outpath)
+
+    dki.main_dki(args.Image, args.bval, args.bvec, args.mask, dki_outpath, b_thresh=args.dki)
+################################################################################
+
+
+
+### GQI ########################################################################
+if args.gqi:
+    print("Performing Generalized Q-Sampling Analysis:")
+    gqi_outpath = outpath + "GQI/"
+    os.mkdir(gqi_outpath)
+
+    SH_order = util.determine_SH_order(args.bval,args.bvec)
+    print("Using Order " + str(SH_order) + " for Spherical Harmonics")
+
+    gqi.main_gqi(args.Image, args.bval, args.bvec, args.mask, gqi_outpath, order=6)
+################################################################################
+
+
+
+### QBI ########################################################################
+if args.qbi:
+    print("Performing Q-Ball Imaing Analysis:")
+    qbi_outpath = outpath + "QBI/"
+    os.mkdir(qbi_outpath)
+
+    SH_order = util.determine_SH_order(args.bval,args.bvec)
+    print("Using Order " + str(SH_order) + " for Spherical Harmonics")
+
+    qbi.main_qbi(args.Image, args.bval, args.bvec, args.mask, qbi_outpath, order=6)
+################################################################################
+
+
+
+### MAP ########################################################################
+if args.map != 0 :
+    print("Performing MAP Analysis:")
+    map_outpath = outpath + "MAP/"
+    os.mkdir(map_outpath)
+
+    d = args.map[0]
+    D = args.map[1]
+
+    order = util.determine_map_order(args.bval,args.bvec)
+    SH_order = util.determine_SH_order(args.bval,args.bvec)
+
+    print("Using Order " + str(order) + " for MAP fit.")
+    print("Using Order " + str(SH_order) + " for Spherical Harmonics")
+
+    map.main_map(args.Image, args.bval, args.bvec, args.mask, d, D, map_outpath, order, SH_order, b_thresh_dti=int(args.map[2]))
+################################################################################
+
+
+
+### AFD ########################################################################
+if args.afd:
+    print("Performing AFD Analysis:")
+
+    afd_outpath = outpath + "AFD/"
+    os.mkdir(afd_outpath)
+
+    # Fit FODs and Estimate AFD using MRtrix3
+    subprocess.call(["mrconvert", "-fslgrad", args.bvec, args.bval, args.Image, (afd_outpath + "dwi.mif")])
+    subprocess.call(["dwi2response", "tournier", (afd_outpath + "dwi.mif"), (afd_outpath + "response.txt")])
+    subprocess.call(["dwi2fod", "csd", (afd_outpath + "dwi.mif"), (afd_outpath + "response.txt"), (afd_outpath + "fod.mif"), "-mask", args.mask])
+    subprocess.call(["fod2fixel", (afd_outpath + "fod.mif"), (afd_outpath + "temp"), "-afd", "afd.mif"])
+
+    # Sort Output
+    shutil.move((afd_outpath + "temp/afd.mif"), (afd_outpath + "afd.mif"))
+    os.remove(afd_outpath + "dwi.mif")
+    os.remove(afd_outpath + "fod.mif")
+    os.remove(afd_outpath + "response.txt")
+    shutil.rmtree(afd_outpath + "temp")
+################################################################################
+
+
+
+### NODDI ######################################################################
+if args.noddi:
+    print("Performing NODDI Analysis:")
+    os.makedirs(outpath + "NODDI/Study01/Subject01")
+
+    shutil.copyfile(args.Image, (outpath + "NODDI/Study01/Subject01/dwi.nii"))
+    shutil.copyfile(args.bval, (outpath + "NODDI/Study01/Subject01/bval"))
+    shutil.copyfile(args.bvec, (outpath + "NODDI/Study01/Subject01/bvec"))
+    shutil.copyfile(args.mask, (outpath + "NODDI/Study01/Subject01/mask.nii"))
+
+    os.chdir(outpath + "NODDI")
+
+    # Run AMICO
+    amico.core.setup()
+    ae = amico.Evaluation("Study01", "Subject01")
+    amico.util.fsl2scheme("Study01/Subject01/bval", "Study01/Subject01/bvec", scheme_Filename = "None", bStep = 10.0, delimiter = " ")
+    ae.load_data(dwi_filename = "dwi.nii", scheme_filename = "bval.scheme", mask_filename = "mask.nii", b0_thr = 0)
+    ae.set_model("NODDI")
+    ae.generate_kernels()
+    ae.load_kernels()
+    ae.fit()
+    ae.save_results()
+
+    # Clean Up Results
+    shutil.move("Study01/Subject01/AMICO/NODDI/FIT_ICVF.nii.gz", "ICVF.nii.gz")
+    shutil.move("Study01/Subject01/AMICO/NODDI/FIT_OD.nii.gz", "OD.nii.gz")
+    shutil.move("Study01/Subject01/AMICO/NODDI/FIT_ISOVF.nii.gz", "ICOVF.nii.gz")
+
+    shutil.rmtree("Study01", ignore_errors=True)
+################################################################################
+
+if temp_mask:
+    os.remove(outpath + "mask.nii")

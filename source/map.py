@@ -763,40 +763,40 @@ def calc_rmn(order):
 
 
 def calc_tmn(uvectors, u0, order_a, order_b):
-    tmn = np.zeros((int(np.round(1/6.0 * (order_a/2 + 1) * (order_a/2 + 2) * (2*order_a + 3))), 1 + order_a / 2))
+    tmn = np.zeros((int(np.round(1/6.0 * (order_a/2 + 1) * (order_a/2 + 2) * (2*order_a + 3))), int(1 + order_a / 2)))
 
-    tx = np.zeros((order_a+1, order_b+1))
-    ty = np.zeros((order_a+1, order_b+1))
-    tz = np.zeros((order_a+1, order_b+1))
+    tx = np.zeros((int(order_a+1), int(order_b+1)))
+    ty = np.zeros((int(order_a+1), int(order_b+1)))
+    tz = np.zeros((int(order_a+1), int(order_b+1)))
 
     psi_x = uvectors[0] / u0
     psi_y = uvectors[1] / u0
     psi_z = uvectors[2] / u0
 
-    for m in range(order_a+1):
-        for n in range(0,2*order_b+1,2):
+    for m in range(int(order_a+1)):
+        for n in range(0,int(2*order_b+1),2):
             if((m+n)%2 == 0):
                 coeff = (np.sqrt(util.factn(m,1) * util.factn(n,1)) / np.sqrt(2 * np.pi) *
                         np.sqrt(util.factn(n,1)) / (util.factn(n,2) * u0))
 
                 for r in range(0,m+1,2):
                     for s in range(0,n+1,2):
-                        tx[m,n/2] += (1 + psi_x**2) ** (-(m+n-r-s+1)/2.0) * psi_x**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
-                        ty[m,n/2] += (1 + psi_y**2) ** (-(m+n-r-s+1)/2.0) * psi_y**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
-                        tz[m,n/2] += (1 + psi_z**2) ** (-(m+n-r-s+1)/2.0) * psi_z**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
+                        tx[m,int(n/2)] += (1 + psi_x**2) ** (-(m+n-r-s+1)/2.0) * psi_x**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
+                        ty[m,int(n/2)] += (1 + psi_y**2) ** (-(m+n-r-s+1)/2.0) * psi_y**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
+                        tz[m,int(n/2)] += (1 + psi_z**2) ** (-(m+n-r-s+1)/2.0) * psi_z**(n-s) * (-1)**((r+s)/2.0) * 2**((m+n-r-s)/2.0) * util.factn(m+n-r-s-1,2) / (util.factn(m-r,1) * util.factn(n-s,1) * util.factn(r,2) * util.factn(s,2))
 
-                tx[m,n/2] *= coeff
-                ty[m,n/2] *= coeff
-                tz[m,n/2] *= coeff
+                tx[m,int(n/2)] *= coeff
+                ty[m,int(n/2)] *= coeff
+                tz[m,int(n/2)] *= coeff
 
 
     m_index = 0
-    for M in range(0,order_a+1,2):
+    for M in range(0,int(order_a+1),2):
         for m1 in range(M+1):
             for m2 in range(M+1):
                 for m3 in range(M+1):
                     if((m1+m2+m3) == M):
-                        for N in range(order_b+1):
+                        for N in range(int(order_b+1)):
                             for n1 in range(N+1):
                                 for n2 in range(N+1):
                                     for n3 in range(N+1):

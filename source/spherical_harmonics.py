@@ -111,7 +111,8 @@ def calc_normalization_matrix(order):
 
 def cart_to_sphere(directions):
     # Calc Theta
-    theta = np.arccos(directions[:,2])
+    with np.errstate(divide='ignore', invalid='ignore'):
+        theta = np.arccos(directions[:,2])
 
     # Calc Phi
     phi = np.zeros((directions.shape[0]))

@@ -546,7 +546,7 @@ def calc_non_gaussianity(coeffs, order, num_coeffs):
 
 
     # Calculate Nongaussianities
-    with np.errstate(divide='ignore'):
+    with np.errstate(divide='ignore', invalid='ignore'):
         ng = np.sqrt(1 - coeffs_lin[:,0]**2 / np.sum(coeffs_lin**2, axis=1))
         ng_par_x = np.sqrt(1 - a1[:,0]**2 / np.sum(a1**2, axis = 1))
         ng_par_y = np.sqrt(1 - a2[:,0]**2 / np.sum(a2**2, axis = 1))

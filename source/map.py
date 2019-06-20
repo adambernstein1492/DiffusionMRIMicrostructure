@@ -196,8 +196,7 @@ def fit_map(data, qvectors, mask, diffusion_time, uvectors, eigen_vectors,
                     R = create_regularization_matrix(order, num_coeffs, uvectors[i,j,k,:], reg_matrix_coeffs)
 
                     # Perform Linear Fit
-                    coeffs[i,j,k,:] = (np.linalg.lstsq((np.dot(Q.T, Q) + lam * R),
-                                                   (np.dot(Q.T, data[i,j,k,:])))[0])
+                    coeffs[i,j,k,:] = (np.linalg.lstsq((np.dot(Q.T, Q) + lam * R), (np.dot(Q.T, data[i,j,k,:])), rcond=None)[0])
 
                     # Normalize coefficients by estimated B0
                     EstimatedB0 = np.dot(coeffs[i,j,k,:], B)
@@ -547,13 +546,14 @@ def calc_non_gaussianity(coeffs, order, num_coeffs):
 
 
     # Calculate Nongaussianities
-    ng = np.sqrt(1 - coeffs_lin[:,0]**2 / np.sum(coeffs_lin**2, axis=1))
-    ng_par_x = np.sqrt(1 - a1[:,0]**2 / np.sum(a1**2, axis = 1))
-    ng_par_y = np.sqrt(1 - a2[:,0]**2 / np.sum(a2**2, axis = 1))
-    ng_par_z = np.sqrt(1 - a3[:,0]**2 / np.sum(a3**2, axis = 1))
-    ng_perp_x = np.sqrt(1 - a23[:,0]**2 / np.sum(a23**2, axis = 1))
-    ng_perp_y = np.sqrt(1 - a13[:,0]**2 / np.sum(a13**2, axis = 1))
-    ng_perp_z = np.sqrt(1 - a12[:,0]**2 / np.sum(a12**2, axis = 1))
+    with np.errstate(divide='ignore'):
+        ng = np.sqrt(1 - coeffs_lin[:,0]**2 / np.sum(coeffs_lin**2, axis=1))
+        ng_par_x = np.sqrt(1 - a1[:,0]**2 / np.sum(a1**2, axis = 1))
+        ng_par_y = np.sqrt(1 - a2[:,0]**2 / np.sum(a2**2, axis = 1))
+        ng_par_z = np.sqrt(1 - a3[:,0]**2 / np.sum(a3**2, axis = 1))
+        ng_perp_x = np.sqrt(1 - a23[:,0]**2 / np.sum(a23**2, axis = 1))
+        ng_perp_y = np.sqrt(1 - a13[:,0]**2 / np.sum(a13**2, axis = 1))
+        ng_perp_z = np.sqrt(1 - a12[:,0]**2 / np.sum(a12**2, axis = 1))
 
     # Change Back to Image Matrix
     ng = np.reshape(ng, coeffs.shape[0:3])
@@ -987,7 +987,7 @@ def calc_dki_params(tensor, d, D):
 
 def fit_map_glyphs(coeffs, uvectors, eigen_vectors, order, mask, moment=2):
     # Allocate for Output
-    num_harmonics = (order + 1) * (order + 2) / 2
+    num_harmonics = int((order + 1) * (order + 2) / 2)
     SH_coeffs = np.zeros((coeffs.shape[0], coeffs.shape[1], coeffs.shape[2], num_harmonics))
 
     # Get Sample directions

@@ -101,8 +101,7 @@ def fit_dti(dwi, bvals, bvecs, mask):
                     W = np.diag(dwi[i,j,k,:]) ** 2
 
                     # Fit Ax = B  (b_matrix' * W * b_matrix * x = b_matrix' * W * signal)
-                    x = (np.linalg.lstsq(np.matmul(np.matmul(b_matrix.T, W), b_matrix),
-                                         np.matmul(np.matmul(b_matrix.T, W), dwi_log[i,j,k,:]))[0])
+                    x = (np.linalg.lstsq(np.matmul(np.matmul(b_matrix.T, W), b_matrix), np.matmul(np.matmul(b_matrix.T, W), dwi_log[i,j,k,:]), rcond=None)[0])
 
                     # Coefficient of Determination
                     predicted_vals = np.matmul(b_matrix, x)

@@ -5,9 +5,9 @@ from . import util
 def eval_spherical_harmonics(directions, order):
     # Convert to spherical coordinates
     dirs_sphere = cart_to_sphere(directions)
-    num_harmonics = (order + 1) * (order + 2) / 2
+    num_harmonics = int((order + 1) * (order + 2) / 2)
 
-    B = np.zeros((directions.shape[0], num_harmonics))
+    B = np.zeros((int(directions.shape[0]), num_harmonics))
 
     index = 0
     for L in range(0,order+1,2):
@@ -97,7 +97,7 @@ def eval_SH_basis(coeffs, directions, mask, order):
 
 def calc_normalization_matrix(order):
 
-    num_harmonics = (order + 1) * (order + 2) / 2
+    num_harmonics = int((order + 1) * (order + 2) / 2)
 
     L = np.zeros((num_harmonics, num_harmonics))
 
